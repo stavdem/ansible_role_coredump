@@ -1,0 +1,52 @@
+---
+- name: Create folder /opt/core_dumps
+  become: yes
+  file:
+    path: /opt/core_dumps
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: 0777
+
+- sysctl:
+    name: kernel.core_pattern
+    value: "|/opt/compress_coredump.sh %h %e %p %t"
+    state: present
+  become: yes
+
+- name: Check if Service Exists
+  stat: path=/etc/init.d/apport
+  register: apport_status
+
+- name: stop apport
+  service:
+    name: apport
+    state: stopped
+    enabled: no
+  become: yes
+  when: apport_status.stat.exists
+
+- name: set limit for core files
+  copy:
+    src: custom_limit.conf
+    dest: /etc/security/limits.d/custom_limit.conf
+  become: yes
+
+- name: set limit for systemd
+  copy:
+    src: system.conf
+    dest: /etc/systemd/system.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: copy compress_coredump.sh
+  copy:
+    src: compress_coredump.sh
+    dest: /opt/compress_coredump.sh
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
